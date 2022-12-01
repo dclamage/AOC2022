@@ -1,8 +1,8 @@
-use std::{fs::File, io::Read};
+use utility::*;
 
 fn main() {
     // Parsing
-    let file_lines = read_file_lines("input.txt");
+    let file_lines = read_file_lines("day1/input.txt");
     let mut elves_vec = Vec::new();
     let mut cur_total = 0;
     for line in file_lines {
@@ -26,12 +26,4 @@ fn main() {
     let top_three = elves_vec[0..3].iter().sum::<i64>();
     println!("PART 2: Top three: {}", top_three);
 
-}
-
-fn read_file_lines(file: &str) -> Vec<String> {
-    let mut file = File::open(file).expect("Unable to open file");
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .expect("Unable to read file");
-    contents.lines().map(|s| s.to_string()).collect()
 }
