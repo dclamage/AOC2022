@@ -39,8 +39,8 @@ pub fn lcm(a: i64, b: i64) -> i64 {
 
 pub fn lcm_many(numbers: &[i64]) -> i64 {
     let mut result = numbers[0];
-    for i in 1..numbers.len() {
-        result = lcm(result, numbers[i]);
+    for &num in numbers.iter().skip(1) {
+        result = lcm(result, num);
     }
     result
 }
@@ -71,12 +71,12 @@ pub fn mod_pow(mut base: i64, mut exp: i64, modulus: i64) -> i64 {
         return 0;
     }
     let mut result = 1;
-    base = base % modulus;
+    base %= modulus;
     while exp > 0 {
         if exp % 2 == 1 {
             result = (result * base) % modulus;
         }
-        exp = exp >> 1;
+        exp >>= 1;
         base = (base * base) % modulus;
     }
     result
@@ -183,25 +183,25 @@ mod test {
     // Test primality
     #[test]
     fn test_is_prime() {
-        assert_eq!(is_prime(2), true);
-        assert_eq!(is_prime(3), true);
-        assert_eq!(is_prime(4), false);
-        assert_eq!(is_prime(5), true);
-        assert_eq!(is_prime(6), false);
-        assert_eq!(is_prime(7), true);
-        assert_eq!(is_prime(8), false);
-        assert_eq!(is_prime(9), false);
-        assert_eq!(is_prime(10), false);
-        assert_eq!(is_prime(11), true);
-        assert_eq!(is_prime(12), false);
-        assert_eq!(is_prime(13), true);
-        assert_eq!(is_prime(14), false);
-        assert_eq!(is_prime(15), false);
-        assert_eq!(is_prime(16), false);
-        assert_eq!(is_prime(17), true);
-        assert_eq!(is_prime(18), false);
-        assert_eq!(is_prime(19), true);
-        assert_eq!(is_prime(20), false);
+        assert!(is_prime(2));
+        assert!(is_prime(3));
+        assert!(!is_prime(4));
+        assert!(is_prime(5));
+        assert!(!is_prime(6));
+        assert!(is_prime(7));
+        assert!(!is_prime(8));
+        assert!(!is_prime(9));
+        assert!(!is_prime(10));
+        assert!(is_prime(11));
+        assert!(!is_prime(12));
+        assert!(is_prime(13));
+        assert!(!is_prime(14));
+        assert!(!is_prime(15));
+        assert!(!is_prime(16));
+        assert!(is_prime(17));
+        assert!(!is_prime(18));
+        assert!(is_prime(19));
+        assert!(!is_prime(20));
     }
 
     // Test mod operations

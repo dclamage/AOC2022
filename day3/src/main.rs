@@ -44,7 +44,7 @@ fn str_bits(s: &str) -> u64 {
     s.bytes().fold(0u64, |acc, c| acc | 1u64 << priority(c))
 }
 
-fn part1(file_lines: &Vec<String>) -> String {
+fn part1(file_lines: &[String]) -> String {
     let priority_total: u64 = file_lines
         .iter()
         .map(|line| line.split_at(line.len() / 2))
@@ -54,7 +54,7 @@ fn part1(file_lines: &Vec<String>) -> String {
     format!("{}", priority_total)
 }
 
-fn part2(file_lines: &Vec<String>) -> String {
+fn part2(file_lines: &[String]) -> String {
     let priority_total: u64 = file_lines
         .iter()
         .chunks(3)

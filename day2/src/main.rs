@@ -39,12 +39,12 @@ enum RPSMove {
 }
 
 fn beats(move_a: RPSMove, move_b: RPSMove) -> bool {
-    match (move_a, move_b) {
-        (RPSMove::Rock, RPSMove::Scissors) => true,
-        (RPSMove::Paper, RPSMove::Rock) => true,
-        (RPSMove::Scissors, RPSMove::Paper) => true,
-        _ => false,
-    }
+    matches!(
+        (move_a, move_b),
+        (RPSMove::Rock, RPSMove::Scissors)
+            | (RPSMove::Paper, RPSMove::Rock)
+            | (RPSMove::Scissors, RPSMove::Paper)
+    )
 }
 
 fn move_score(m: RPSMove) -> u32 {
@@ -55,7 +55,7 @@ fn move_score(m: RPSMove) -> u32 {
     }
 }
 
-fn part1(file_lines: &Vec<String>) -> String {
+fn part1(file_lines: &[String]) -> String {
     let mut score = 0;
     for line in file_lines.iter() {
         let parts = line.split_ascii_whitespace().collect::<Vec<&str>>();
@@ -102,7 +102,7 @@ fn losing_move(m: RPSMove) -> RPSMove {
     }
 }
 
-fn part2(file_lines: &Vec<String>) -> String {
+fn part2(file_lines: &[String]) -> String {
     let mut score = 0;
     for line in file_lines.iter() {
         let parts = line.split_ascii_whitespace().collect::<Vec<&str>>();
