@@ -39,15 +39,7 @@ struct Range {
 
 impl Range {
     fn new(range: &str) -> Range {
-        let range: (u32, u32) = range
-            .split('-')
-            .map(|s| s.parse().unwrap())
-            .collect_tuple()
-            .unwrap();
-        Range {
-            min: range.0,
-            max: range.1,
-        }
+        range.split('-').map(|s| s.parse().unwrap()).collect()
     }
 
     fn fully_contains(&self, other: &Range) -> bool {
@@ -56,6 +48,16 @@ impl Range {
 
     fn intersects(&self, other: &Range) -> bool {
         self.min <= other.max && self.max >= other.min
+    }
+}
+
+impl FromIterator<u32> for Range {
+    fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
+        let mut iter = iter.into_iter();
+        Range {
+            min: iter.next().unwrap(),
+            max: iter.next().unwrap(),
+        }
     }
 }
 
