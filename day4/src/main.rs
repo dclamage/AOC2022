@@ -59,14 +59,16 @@ impl Range {
     }
 }
 
+fn parse_ranges(file_lines: &[String]) -> impl Iterator<Item = (Range, Range)> + '_ {
+    file_lines.iter().filter_map(|line| {
+        line.split(',')
+            .map(Range::new)
+            .collect_tuple::<(Range, Range)>()
+    })
+}
+
 fn part1(file_lines: &[String]) -> String {
-    let num_fully_overlapped = file_lines
-        .iter()
-        .filter_map(|line| {
-            line.split(',')
-                .map(Range::new)
-                .collect_tuple::<(Range, Range)>()
-        })
+    let num_fully_overlapped = parse_ranges(file_lines)
         .filter(|ranges| ranges.0.fully_contains(&ranges.1) || ranges.1.fully_contains(&ranges.0))
         .count();
 
@@ -74,13 +76,7 @@ fn part1(file_lines: &[String]) -> String {
 }
 
 fn part2(file_lines: &[String]) -> String {
-    let num_fully_overlapped = file_lines
-        .iter()
-        .filter_map(|line| {
-            line.split(',')
-                .map(Range::new)
-                .collect_tuple::<(Range, Range)>()
-        })
+    let num_fully_overlapped = parse_ranges(file_lines)
         .filter(|ranges| ranges.0.intersects(&ranges.1))
         .count();
 
