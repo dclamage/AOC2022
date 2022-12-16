@@ -165,7 +165,7 @@ fn find_best_pressure_released(
         let valves = &parsed_data.valves;
         let all_released = parsed_data.all_released;
 
-        if minutes_remaining == 0 || has_released == all_released {
+        if minutes_remaining == 1 || has_released == all_released {
             return 0;
         }
 
@@ -182,6 +182,10 @@ fn find_best_pressure_released(
                 best_pressure_released = pressure_released;
             }
         } else {
+            if minutes_remaining == 2 {
+                return 0;
+            }
+
             // Determine which connections are worth following
             let mut worth_visiting_next: u64 = get_worth_visiting_next(current_location, has_released);
 
@@ -235,7 +239,7 @@ fn find_best_pressure_released_with_partner(
         let valves = &parsed_data.valves;
         let all_released = parsed_data.all_released;
 
-        if minutes_remaining == 0 || has_released == all_released {
+        if minutes_remaining == 1 || has_released == all_released {
             return 0;
         }
 
@@ -281,6 +285,10 @@ fn find_best_pressure_released_with_partner(
             }
             pressure_released_this_round + best_released_for_1
         } else {
+            if minutes_remaining == 2 {
+                return 0;
+            }
+
             let mut worth_visiting_next_1 = get_worth_visiting_next(location1, has_released);
             let worth_visiting_next_2 = get_worth_visiting_next(location2, has_released);
             
