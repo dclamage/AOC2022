@@ -57,6 +57,7 @@ thread_local! {
         valves: Vec::new(),
         start_id: 0,
         all_released: 0,});
+    static NUM_MEMOS: RefCell<usize> = RefCell::new(0);
 }
 
 lazy_static! {
@@ -147,7 +148,7 @@ fn get_worth_visiting_next(current_location: usize, has_released: u64) -> u64 {
         while not_yet_released != 0 {
             let valve_id = not_yet_released.trailing_zeros() as usize;
             worth_visiting_next |= 1u64 << current_valve.to_valve_moves[valve_id];
-            not_yet_released &= !(1u64 << valve_id);
+            not_yet_released &= not_yet_released - 1;
         }
 
         worth_visiting_next
@@ -187,7 +188,8 @@ fn find_best_pressure_released(
             }
 
             // Determine which connections are worth following
-            let mut worth_visiting_next: u64 = get_worth_visiting_next(current_location, has_released);
+            let mut worth_visiting_next: u64 =
+                get_worth_visiting_next(current_location, has_released);
 
             while worth_visiting_next != 0 {
                 let connection_id = worth_visiting_next.trailing_zeros() as usize;
@@ -196,7 +198,7 @@ fn find_best_pressure_released(
                 if pressure_released > best_pressure_released {
                     best_pressure_released = pressure_released;
                 }
-                worth_visiting_next &= !(1u64 << connection_id);
+                worth_visiting_next &= worth_visiting_next - 1;
             }
         }
         best_pressure_released
@@ -227,95 +229,184 @@ fn part1() -> String {
     best_pressure_released.to_string()
 }
 
-#[memoize]
+const NO_LOCATION_GOAL: usize = usize::MAX;
+
+fn find_best_pressure_released_with_partner_entry(
+    start_location: usize,
+    minutes_remaining: i64,
+) -> i64 {
+    find_best_pressure_released_with_partner(
+        start_location,
+        NO_LOCATION_GOAL,
+        start_location,
+        NO_LOCATION_GOAL,
+        minutes_remaining,
+        0,
+    )
+}
+
 fn find_best_pressure_released_with_partner(
     location1: usize,
+    location_goal_1: usize,
     location2: usize,
+    location_goal_2: usize,
     minutes_remaining: i64,
     has_released: u64,
 ) -> i64 {
+    let all_released = PARSED_DATA.with(|parsed_data| parsed_data.borrow().all_released);
+
+    // With only one minute left, opening a valve won't do anything.
+    // Also, if we've already released all valves, there's no point in continuing.
+    if minutes_remaining == 1 || has_released == all_released {
+        return 0;
+    }
+
+    // Cancel the location goal when reaching that location to simplify some logic
+    let location_goal_1 = if location_goal_1 == location1 {
+        NO_LOCATION_GOAL
+    } else {
+        location_goal_1
+    };
+    let location_goal_2 = if location_goal_2 == location2 {
+        NO_LOCATION_GOAL
+    } else {
+        location_goal_2
+    };
+
+    // If we picked a location goal but it's already open now, this can't be the most efficient
+    if location_goal_1 != NO_LOCATION_GOAL && is_released(has_released, location_goal_1)
+        || location_goal_2 != NO_LOCATION_GOAL && is_released(has_released, location_goal_2)
+    {
+        return 0;
+    }
+
+    // If both goals are the same location, this can't be the most efficient
+    if location_goal_1 != NO_LOCATION_GOAL && location_goal_1 == location_goal_2 {
+        return 0;
+    }
+
+    // The two actors are interchangeable, so we can avoid duplicate work by always
+    // having the actor with the lower location ID go first.
+    if location1 < location2 {
+        find_best_pressure_released_with_partner_memoed(
+            location1,
+            location_goal_1,
+            location2,
+            location_goal_2,
+            minutes_remaining,
+            has_released,
+        )
+    } else {
+        find_best_pressure_released_with_partner_memoed(
+            location2,
+            location_goal_2,
+            location1,
+            location_goal_1,
+            minutes_remaining,
+            has_released,
+        )
+    }
+}
+
+#[memoize]
+fn find_best_pressure_released_with_partner_memoed(
+    location1: usize,
+    location_goal_1: usize,
+    location2: usize,
+    location_goal_2: usize,
+    minutes_remaining: i64,
+    has_released: u64,
+) -> i64 {
+    NUM_MEMOS.with(|num_memos| {
+        *num_memos.borrow_mut() += 1;
+    });
+
     PARSED_DATA.with(|parsed_data| {
         let parsed_data = parsed_data.borrow();
         let valves = &parsed_data.valves;
         let all_released = parsed_data.all_released;
 
-        if minutes_remaining == 1 || has_released == all_released {
+        let valve1 = &valves[location1];
+        let valve2 = &valves[location2];
+        let should_open1 = valve1.flow_rate > 0 && !is_released(has_released, location1);
+        let should_open2 =
+            location1 != location2 && valve2.flow_rate > 0 && !is_released(has_released, location2);
+
+        if !should_open1 && !should_open2 && minutes_remaining <= 2 {
+            // 2 minutes isn't long enough to travel somewhere else, open a valve, and have that result in pressure
             return 0;
         }
 
-        let valve1 = &valves[location1];
-        let valve2 = &valves[location2];
-        let should_open1 = valve1.flow_rate > 0 && !is_released(has_released, valve1.id);
-        let should_open2 = location1 != location2 && valve2.flow_rate > 0 && !is_released(has_released, valve2.id);
+        let pressure_released_this_round = (if should_open1 { valve1.flow_rate } else { 0 }
+            + if should_open2 { valve2.flow_rate } else { 0 })
+            * (minutes_remaining - 1);
 
-        if should_open1 && should_open2 {
-            let pressure_released_this_round = (valve1.flow_rate + valve2.flow_rate) * (minutes_remaining - 1);
-            let has_released = set_released(set_released(has_released, valve1.id), valve2.id);
-            pressure_released_this_round + find_best_pressure_released_with_partner(location1, location2, minutes_remaining - 1, has_released)
-        } else if should_open1 {
-            let pressure_released_this_round = valve1.flow_rate * (minutes_remaining - 1);
-            let has_released = set_released(has_released, valve1.id);
+        let mut has_released = has_released;
 
-            let mut best_released_for_2 = 0;
-            let mut worth_visiting_next: u64 = get_worth_visiting_next(location2, has_released);
-            while worth_visiting_next != 0 {
-                let connection_id = worth_visiting_next.trailing_zeros() as usize;
-                let pressure_released =
-                    find_best_pressure_released_with_partner(location1, connection_id, minutes_remaining - 1, has_released);
-                if pressure_released > best_released_for_2 {
-                    best_released_for_2 = pressure_released;
-                }
-                worth_visiting_next &= !(1u64 << connection_id);
-            }
-            pressure_released_this_round + best_released_for_2
-        } else if should_open2 {
-            let pressure_released_this_round = valve2.flow_rate * (minutes_remaining - 1);
-            let has_released = set_released(has_released, valve2.id);
-
-            let mut best_released_for_1 = 0;
-            let mut worth_visiting_next: u64 = get_worth_visiting_next(location1, has_released);
-            while worth_visiting_next != 0 {
-                let connection_id = worth_visiting_next.trailing_zeros() as usize;
-                let pressure_released =
-                    find_best_pressure_released_with_partner(connection_id, location2, minutes_remaining - 1, has_released);
-                if pressure_released > best_released_for_1 {
-                    best_released_for_1 = pressure_released;
-                }
-                worth_visiting_next &= !(1u64 << connection_id);
-            }
-            pressure_released_this_round + best_released_for_1
+        let mut new_locations1 = if should_open1 {
+            has_released = set_released(has_released, location1);
+            1u64 << location1
+        } else if location_goal_1 != NO_LOCATION_GOAL {
+            1u64 << location_goal_1
         } else {
-            if minutes_remaining == 2 {
-                return 0;
-            }
+            all_released & !has_released
+        };
 
-            let mut worth_visiting_next_1 = get_worth_visiting_next(location1, has_released);
-            let worth_visiting_next_2 = get_worth_visiting_next(location2, has_released);
-            
-            let mut best_pressure_released = 0;
-            while worth_visiting_next_1 != 0 {
-                let connection_id_1 = worth_visiting_next_1.trailing_zeros() as usize;
-                let mut worth_visiting_next_2 = worth_visiting_next_2;
-                while worth_visiting_next_2 != 0 {
-                    let connection_id_2 = worth_visiting_next_2.trailing_zeros() as usize;
-                    let pressure_released =
-                        find_best_pressure_released_with_partner(connection_id_1, connection_id_2, minutes_remaining - 1, has_released);
-                    if pressure_released > best_pressure_released {
-                        best_pressure_released = pressure_released;
-                    }
-                    worth_visiting_next_2 &= !(1u64 << connection_id_2);
+        let new_locations2 = if should_open2 {
+            has_released = set_released(has_released, location2);
+            1u64 << location2
+        } else if location_goal_2 != NO_LOCATION_GOAL {
+            1u64 << location_goal_2
+        } else {
+            all_released & !has_released
+        };
+
+        let mut best_pressure_released = 0;
+        while new_locations1 != 0 {
+            let new_location_goal_1 = new_locations1.trailing_zeros() as usize;
+            new_locations1 &= new_locations1 - 1;
+
+            let connection_id_1 = if location1 != new_location_goal_1 {
+                valve1.to_valve_moves[new_location_goal_1]
+            } else {
+                location1
+            };
+
+            let mut new_locations2 = new_locations2;
+            while new_locations2 != 0 {
+                let new_location_goal_2 = new_locations2.trailing_zeros() as usize;
+                new_locations2 &= new_locations2 - 1;
+
+                let connection_id_2 = if location2 != new_location_goal_2 {
+                    valve2.to_valve_moves[new_location_goal_2]
+                } else {
+                    location2
+                };
+
+                let pressure_released = find_best_pressure_released_with_partner(
+                    connection_id_1,
+                    new_location_goal_1,
+                    connection_id_2,
+                    new_location_goal_2,
+                    minutes_remaining - 1,
+                    has_released,
+                );
+                if pressure_released > best_pressure_released {
+                    best_pressure_released = pressure_released;
                 }
-                worth_visiting_next_1 &= !(1u64 << connection_id_1);
             }
-
-            best_pressure_released
         }
+        pressure_released_this_round + best_pressure_released
     })
 }
 
 fn part2() -> String {
     let start_id = PARSED_DATA.with(|parsed_data| parsed_data.borrow().start_id);
-    let best_pressure_released =
-        find_best_pressure_released_with_partner(start_id, start_id, 26, 0);
+    let best_pressure_released = find_best_pressure_released_with_partner_entry(start_id, 26);
+
+    NUM_MEMOS.with(|num_memos| {
+        println!("{} memos", *num_memos.borrow());
+    });
+
     best_pressure_released.to_string()
 }
