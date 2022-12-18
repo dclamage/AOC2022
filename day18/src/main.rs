@@ -53,6 +53,43 @@ impl Point3D {
             z: segs[2].parse().unwrap(),
         }
     }
+
+    fn adjacent(&self) -> Point3DAdjacentIterator {
+        Point3DAdjacentIterator::new(*self)
+    }
+}
+
+struct Point3DAdjacentIterator {
+    point: Point3D,
+    index: usize,
+}
+
+impl Point3DAdjacentIterator {
+    fn new(point: Point3D) -> Point3DAdjacentIterator {
+        Point3DAdjacentIterator { point, index: 0 }
+    }
+}
+
+impl Iterator for Point3DAdjacentIterator {
+    type Item = Point3D;
+
+    fn next(&mut self) -> Option<Point3D> {
+        let Point3DAdjacentIterator { point, index } = self;
+        let Point3D { x, y, z } = point;
+
+        let result = match index {
+            0 => Some(Point3D::new(*x - 1, *y, *z)),
+            1 => Some(Point3D::new(*x + 1, *y, *z)),
+            2 => Some(Point3D::new(*x, *y - 1, *z)),
+            3 => Some(Point3D::new(*x, *y + 1, *z)),
+            4 => Some(Point3D::new(*x, *y, *z - 1)),
+            5 => Some(Point3D::new(*x, *y, *z + 1)),
+            _ => None,
+        };
+
+        *index += 1;
+        result
+    }
 }
 
 fn parse_input(file_lines: &[String]) -> HashSet<Point3D> {
@@ -65,20 +102,8 @@ fn parse_input(file_lines: &[String]) -> HashSet<Point3D> {
 fn total_surface_area(cubes: &HashSet<Point3D>) -> i64 {
     let mut surface_area = 0;
     for &cube in cubes.iter() {
-        let Point3D { x, y, z } = cube;
-
-        // Loop through all orthogonally adjacent cubes
-        let adjacency_list: [Point3D; 6] = [
-            Point3D::new(x - 1, y, z),
-            Point3D::new(x + 1, y, z),
-            Point3D::new(x, y - 1, z),
-            Point3D::new(x, y + 1, z),
-            Point3D::new(x, y, z - 1),
-            Point3D::new(x, y, z + 1),
-        ];
-
-        for adjacent_cube in adjacency_list.iter() {
-            if !cubes.contains(adjacent_cube) {
+        for adjacent_cube in cube.adjacent() {
+            if !cubes.contains(&adjacent_cube) {
                 surface_area += 1;
             }
         }
@@ -128,27 +153,11 @@ fn part2(file_lines: &[String]) -> String {
     let start = Point3D::new(min_x + 1, min_y + 1, min_z + 1);
     let mut queue = vec![start];
     while let Some(cube) = queue.pop() {
-        if cubes.contains(&cube) {
-            continue;
-        }
-
-        cubes.insert(cube);
-
-        let Point3D { x, y, z } = cube;
-
-        // Loop through all orthogonally adjacent cubes
-        let adjacency_list: [Point3D; 6] = [
-            Point3D::new(x - 1, y, z),
-            Point3D::new(x + 1, y, z),
-            Point3D::new(x, y - 1, z),
-            Point3D::new(x, y + 1, z),
-            Point3D::new(x, y, z - 1),
-            Point3D::new(x, y, z + 1),
-        ];
-
-        for adjacent_cube in adjacency_list.iter() {
-            if !cubes.contains(adjacent_cube) {
-                queue.push(*adjacent_cube);
+        if cubes.insert(cube) {
+            for adjacent_cube in cube.adjacent() {
+                if !cubes.contains(&adjacent_cube) {
+                    queue.push(adjacent_cube);
+                }
             }
         }
     }
