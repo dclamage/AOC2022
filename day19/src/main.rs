@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::io::{self, Write};
@@ -256,30 +255,30 @@ impl Factory {
         new_factory
     }
 
+    fn divru(needed: i64, have: i64) -> i64 {
+        (needed + have - 1) / have
+    }
+
     fn build_robot_with_cost(&self, robot: Resources, cost: Resources) -> Factory {
         let mut new_factory = *self;
 
         let resources_needed = cost - new_factory.resources;
         let mut max_time_needed = 0;
         if resources_needed.ore > 0 {
-            max_time_needed = max_time_needed
-                .max((resources_needed.ore + new_factory.robots.ore - 1) / new_factory.robots.ore);
+            max_time_needed =
+                max_time_needed.max(Self::divru(resources_needed.ore, new_factory.robots.ore));
         }
         if resources_needed.clay > 0 {
-            max_time_needed = max_time_needed.max(
-                (resources_needed.clay + new_factory.robots.clay - 1) / new_factory.robots.clay,
-            );
+            max_time_needed =
+                max_time_needed.max(Self::divru(resources_needed.clay, new_factory.robots.clay));
         }
         if resources_needed.obsidian > 0 {
-            max_time_needed = max_time_needed.max(
-                (resources_needed.obsidian + new_factory.robots.obsidian - 1)
-                    / new_factory.robots.obsidian,
-            );
+            max_time_needed =
+                max_time_needed.max(Self::divru(resources_needed.obsidian, new_factory.robots.obsidian));
         }
         if resources_needed.geode > 0 {
-            max_time_needed = max_time_needed.max(
-                (resources_needed.geode + new_factory.robots.geode - 1) / new_factory.robots.geode,
-            );
+            max_time_needed =
+                max_time_needed.max(Self::divru(resources_needed.geode, new_factory.robots.geode));
         }
 
         // Step one extra to give time to build the robot
