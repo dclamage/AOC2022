@@ -127,6 +127,15 @@ impl Resources {
             geode: 1,
         }
     }
+
+    fn max(&self, other: &Resources) -> Resources {
+        Resources {
+            ore: self.ore.max(other.ore),
+            clay: self.clay.max(other.clay),
+            obsidian: self.obsidian.max(other.obsidian),
+            geode: self.geode.max(other.geode),
+        }
+    }
 }
 
 impl std::ops::Add for Resources {
@@ -193,6 +202,7 @@ struct Blueprint {
     clay_robot_cost: Resources,
     obsidian_robot_cost: Resources,
     geode_robot_cost: Resources,
+    max_resources_needed: Resources,
 }
 
 impl Blueprint {
@@ -205,6 +215,10 @@ impl Blueprint {
             Resources::obsidian_robot(caps[4].parse().unwrap(), caps[5].parse().unwrap());
         let geode_robot_cost =
             Resources::geode_robot(caps[6].parse().unwrap(), caps[7].parse().unwrap());
+        let max_resources_needed: Resources = ore_robot_cost
+            .max(&clay_robot_cost)
+            .max(&obsidian_robot_cost)
+            .max(&geode_robot_cost);
 
         Blueprint {
             id,
@@ -212,6 +226,7 @@ impl Blueprint {
             clay_robot_cost,
             obsidian_robot_cost,
             geode_robot_cost,
+            max_resources_needed,
         }
     }
 }
@@ -291,6 +306,16 @@ impl Factory {
             + self.robots.geode * self.num_steps_remaining
             + ((self.num_steps_remaining - 1) * self.num_steps_remaining) / 2
     }
+
+    fn need_more_robots_of_resource(&self) -> (bool, bool, bool) {
+        let existing_stock = self.resources + self.robots * self.num_steps_remaining;
+        let max_needed = self.blueprint.max_resources_needed * self.num_steps_remaining;
+        (
+            existing_stock.ore < max_needed.ore,
+            existing_stock.clay < max_needed.clay,
+            existing_stock.obsidian < max_needed.obsidian,
+        )
+    }
 }
 
 fn parse_blueprints(file_lines: &[String]) -> Vec<Blueprint> {
@@ -323,24 +348,30 @@ fn most_geodes(factory: Factory) -> i64 {
             continue;
         }
 
+        let (need_ore, need_clay, need_obsidian) = factory.need_more_robots_of_resource();
+
         // Build ore robot next
-        let new_factory =
-            factory.build_robot_with_cost(Resources::one_ore(), factory.blueprint.ore_robot_cost);
-        most_geodes_found = most_geodes_found.max(new_factory.resources.geode);
-        if new_factory.num_steps_remaining > 0 {
-            factory_queue.push(new_factory);
+        if need_ore {
+            let new_factory = factory
+                .build_robot_with_cost(Resources::one_ore(), factory.blueprint.ore_robot_cost);
+            most_geodes_found = most_geodes_found.max(new_factory.resources.geode);
+            if new_factory.num_steps_remaining > 0 {
+                factory_queue.push(new_factory);
+            }
         }
 
         // Build clay robot next
-        let new_factory =
-            factory.build_robot_with_cost(Resources::one_clay(), factory.blueprint.clay_robot_cost);
-        most_geodes_found = most_geodes_found.max(new_factory.resources.geode);
-        if new_factory.num_steps_remaining > 0 {
-            factory_queue.push(new_factory);
+        if need_clay {
+            let new_factory = factory
+                .build_robot_with_cost(Resources::one_clay(), factory.blueprint.clay_robot_cost);
+            most_geodes_found = most_geodes_found.max(new_factory.resources.geode);
+            if new_factory.num_steps_remaining > 0 {
+                factory_queue.push(new_factory);
+            }
         }
 
         // Build obsidian robot next, if possible
-        if factory.robots.clay > 0 {
+        if factory.robots.clay > 0 && need_obsidian {
             let new_factory = factory.build_robot_with_cost(
                 Resources::one_obsidian(),
                 factory.blueprint.obsidian_robot_cost,
