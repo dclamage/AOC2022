@@ -37,8 +37,7 @@ fn main() {
 #[derive(Debug, Clone)]
 struct Item {
     value: i64,
-    prev: usize,
-    next: usize,
+    orig_index: usize,
 }
 
 fn parse_list(file_lines: &[String]) -> Vec<Item> {
@@ -47,82 +46,50 @@ fn parse_list(file_lines: &[String]) -> Vec<Item> {
         let num = line.parse::<i64>().unwrap();
         list.push(Item {
             value: num,
-            prev: (i + file_lines.len() - 1) % file_lines.len(),
-            next: (i + 1) % file_lines.len(),
+            orig_index: i,
         });
     }
     list
 }
 
-fn mix_item(items: &mut [Item], index: usize) {
-    let item_value = items[index].value;
+fn mix_item(items: &mut Vec<Item>, orig_index: usize) {
+    // Find the item's current index which has the original index
+    let current_index = items.iter().position(|x| x.orig_index == orig_index).unwrap();
 
-    if item_value == 0 {
+    let value = items[current_index].value;
+    if value == 0 {
         return;
     }
 
-    let new_index = if item_value > 0 {
-        // Find how many places to move the item to the right
-        let move_right = item_value as usize;
-
-        // Traverse the list to find the new location for the item
-        let mut new_index = index;
-        for _ in 0..move_right {
-            new_index = items[new_index].next;
+    let swap_mod = (items.len() - 1) as i64;
+    if value > 0 {
+        let num_swaps = (value % swap_mod) as usize;
+        for i in 0..num_swaps {
+            let index0 = (current_index + i) % items.len();
+            let index1 = (current_index + i + 1) % items.len();
+            items.swap(index0, index1);
         }
-        new_index
     } else {
-        // Find how many places to move the item to the left
-        // (add 1 to the value to account for the item inserting to the right of the new index)
-        let move_left = (-item_value) as usize + 1;
-
-        // Traverse the list to find the new location for the item
-        let mut new_index = index;
-        for _ in 0..move_left {
-            new_index = items[new_index].prev;
+        let num_swaps = (-value % swap_mod) as usize;
+        for i in 0..num_swaps {
+            let index0 = (current_index + items.len() * 2 - i) % items.len();
+            let index1 = (current_index + items.len() * 2 - i - 1) % items.len();
+            items.swap(index0, index1);
         }
-        new_index
-    };
-
-    if new_index == index {
-        return;
     }
-
-    // Remove the item from the list
-    let prev = items[index].prev;
-    let next = items[index].next;
-    items[prev].next = next;
-    items[next].prev = prev;
-
-    // Insert the item into the new index
-    let next = items[new_index].next;
-    items[new_index].next = index;
-    items[next].prev = index;
-    items[index].prev = new_index;
-    items[index].next = next;
 }
 
 #[allow(dead_code)]
-fn print_list(items: &[Item], start_index: usize) {
-    let mut index = start_index;
-    for _ in 0..items.len() {
-        print!("{} ", items[index].value);
-        index = items[index].next;
+fn print_list(items: &[Item]) {
+    for item in items.iter() {
+        print!("{} ", item.value);
     }
     println!();
 }
 
-fn get_index_from(items: &[Item], start_index: usize, length_from_index: usize) -> usize {
-    let length_from_index = length_from_index % items.len();
-    let mut index = start_index;
-    for _ in 0..length_from_index {
-        index = items[index].next;
-    }
-    index
-}
-
 fn part1(file_lines: &[String]) -> String {
     let mut items = parse_list(file_lines);
+
     for i in 0..items.len() {
         mix_item(&mut items, i);
     }
@@ -130,17 +97,36 @@ fn part1(file_lines: &[String]) -> String {
     // Find the index of value 0
     let zero_index = items.iter().position(|x| x.value == 0).unwrap();
 
-    let index1000 = get_index_from(&items, zero_index, 1000);
-    let index2000 = get_index_from(&items, index1000, 1000);
-    let index3000 = get_index_from(&items, index2000, 1000);
+    let value1000 = items[(zero_index + 1000) % items.len()].value;
+    let value2000 = items[(zero_index + 2000) % items.len()].value;
+    let value3000 = items[(zero_index + 3000) % items.len()].value;
 
-    let value_sum = items[index1000].value
-        + items[index2000].value
-        + items[index3000].value;
+    let value_sum = value1000 + value2000 + value3000;
 
     value_sum.to_string()
 }
 
 fn part2(file_lines: &[String]) -> String {
-    "".to_string()
+    const DECRYPTION_KEY: i64 = 811589153;
+    let mut items = parse_list(file_lines);
+    for item in items.iter_mut() {
+        item.value *= DECRYPTION_KEY;
+    }
+
+    for _ in 0..10 {
+        for i in 0..items.len() {
+            mix_item(&mut items, i);
+        }
+    }
+
+    // Find the index of value 0
+    let zero_index = items.iter().position(|x| x.value == 0).unwrap();
+
+    let value1000 = items[(zero_index + 1000) % items.len()].value;
+    let value2000 = items[(zero_index + 2000) % items.len()].value;
+    let value3000 = items[(zero_index + 3000) % items.len()].value;
+
+    let value_sum = value1000 + value2000 + value3000;
+
+    value_sum.to_string()
 }
