@@ -48,7 +48,6 @@ enum Op {
     Sub(usize, usize),
     Mul(usize, usize),
     Div(usize, usize),
-    Eq(usize, usize),
 }
 
 impl Op {
@@ -59,7 +58,6 @@ impl Op {
             Op::Sub(left, right) => (*left, *right),
             Op::Mul(left, right) => (*left, *right),
             Op::Div(left, right) => (*left, *right),
-            Op::Eq(left, right) => (*left, *right),
         }
     }
 }
@@ -114,7 +112,6 @@ fn evaluate(ops: &[Op], id: usize) -> i64 {
         Op::Sub(left, right) => evaluate(ops, *left) - evaluate(ops, *right),
         Op::Mul(left, right) => evaluate(ops, *left) * evaluate(ops, *right),
         Op::Div(left, right) => evaluate(ops, *left) / evaluate(ops, *right),
-        Op::Eq(left, right) => i64::from(evaluate(ops, *left) == evaluate(ops, *right)),
     }
 }
 
@@ -128,10 +125,10 @@ fn part1(file_lines: &[String]) -> String {
 fn part2(file_lines: &[String]) -> String {
     let (mut ops, name_lookup) = parse_lines(file_lines);
 
-    // Modify the ops per spec
+    // Modify the root to subtract left from right. 0 means we win.
     let root_id = name_lookup["root"];
     let (left, right) = ops[root_id].ids();
-    ops[root_id] = Op::Eq(left, right);
+    ops[root_id] = Op::Sub(left, right);
 
     let humn_id = name_lookup["humn"];
     let mut lower_bound: i64 = 0;
@@ -139,21 +136,21 @@ fn part2(file_lines: &[String]) -> String {
     let mut humn_val: i64 = 1;
     loop {
         ops[humn_id] = Op::Scalar(humn_val);
-        let left_val = evaluate(&ops, left);
-        let right_val = evaluate(&ops, right);
-        match left_val.cmp(&right_val) {
-            Ordering::Less => {
-                lower_bound = humn_val;
-            }
-            Ordering::Equal => {
-                return humn_val.to_string();
-            }
-            Ordering::Greater => {
-                upper_bound = humn_val;
-            }
+        let root_val = evaluate(&ops, root_id);
+        if root_val == 0 {
+            return humn_val.to_string();
         }
+
+        if root_val < 0 {
+            lower_bound = humn_val;
+        } else {
+            upper_bound = humn_val;
+        }
+
         if lower_bound == 0 || upper_bound == 0 {
             humn_val *= 2;
+        } else if lower_bound == upper_bound {
+            return "No solution found".to_owned();
         } else {
             humn_val = (lower_bound + upper_bound) / 2;
         }
