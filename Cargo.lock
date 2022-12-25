@@ -173,6 +173,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "day25"
+version = "0.1.0"
+dependencies = [
+ "itertools",
+ "lazy_static",
+ "memoize",
+ "regex",
+ "utility",
+]
+
+[[package]]
 name = "day3"
 version = "0.1.0"
 dependencies = [
